@@ -1,0 +1,90 @@
+#define CONFIG_SSID "race clock"
+
+#define CONFIG_SRCLK 6 // white - phys12 - latch
+#define CONFIG_RCLK 7  // blue  - phys13 - clk
+#define CONFIG_SER 8   // green - phys14 - data
+
+#define SEG1A 1 << 24
+#define SEG1B 1 << 25
+#define SEG1C 1 << 26
+#define SEG1D 1 << 27
+#define SEG1E 1 << 28
+#define SEG1F 1 << 29
+#define SEG1G 1 << 30
+
+#define SEG2A 1 << 16
+#define SEG2B 1 << 17
+#define SEG2C 1 << 18
+#define SEG2D 1 << 19
+#define SEG2E 1 << 20
+#define SEG2F 1 << 21
+#define SEG2G 1 << 22
+
+#define SEG3A 1 << 8
+#define SEG3B 1 << 9
+#define SEG3C 1 << 10
+#define SEG3D 1 << 11
+#define SEG3E 1 << 12
+#define SEG3F 1 << 13
+#define SEG3G 1 << 14
+
+#define SEG4A 1 << 0
+#define SEG4B 1 << 1
+#define SEG4C 1 << 2
+#define SEG4D 1 << 3
+#define SEG4E 1 << 4
+#define SEG4F 1 << 5
+#define SEG4G 1 << 6
+
+#define TopDP 1 << 31
+#define BtmDP 1 << 7
+
+#define SEG10 SEG1A | SEG1B | SEG1C | SEG1D | SEG1E | SEG1F
+#define SEG20 SEG2A | SEG2B | SEG2C | SEG2D | SEG2E | SEG2F
+#define SEG30 SEG3A | SEG3B | SEG3C | SEG3D | SEG3E | SEG3F
+#define SEG40 SEG4A | SEG4B | SEG4C | SEG4D | SEG4E | SEG4F
+
+#define SEG11 SEG1B | SEG1C
+#define SEG21 SEG2B | SEG2C
+#define SEG31 SEG3B | SEG3C
+#define SEG41 SEG4B | SEG4C
+
+#define SEG12 SEG1A | SEG1B | SEG1D | SEG1E | SEG1G
+#define SEG22 SEG2A | SEG2B | SEG2D | SEG2E | SEG2G
+#define SEG32 SEG3A | SEG3B | SEG3D | SEG3E | SEG3G
+#define SEG42 SEG4A | SEG4B | SEG4D | SEG4E | SEG4G
+
+#define SEG13 SEG1A | SEG1B | SEG1C | SEG1D | SEG1G
+#define SEG23 SEG2A | SEG2B | SEG2C | SEG2D | SEG2G
+#define SEG33 SEG3A | SEG3B | SEG3C | SEG3D | SEG3G
+#define SEG43 SEG4A | SEG4B | SEG4C | SEG4D | SEG4G
+
+#define SEG14 SEG1B | SEG1C | SEG1F | SEG1G
+#define SEG24 SEG2B | SEG2C | SEG2F | SEG2G
+#define SEG34 SEG3B | SEG3C | SEG3F | SEG3G
+#define SEG44 SEG4B | SEG4C | SEG4F | SEG4G
+
+#define SEG15 SEG1A | SEG1C | SEG1D | SEG1F | SEG1G
+#define SEG25 SEG2A | SEG2C | SEG2D | SEG2F | SEG2G
+#define SEG35 SEG3A | SEG3C | SEG3D | SEG3F | SEG3G
+#define SEG45 SEG4A | SEG4C | SEG4D | SEG4F | SEG4G
+
+#define SEG16 SEG1A | SEG1C | SEG1D | SEG1E | SEG1F | SEG1G
+#define SEG26 SEG2A | SEG2C | SEG2D | SEG2E | SEG2F | SEG2G
+#define SEG36 SEG3A | SEG3C | SEG3D | SEG3E | SEG3F | SEG3G
+#define SEG46 SEG4A | SEG4C | SEG4D | SEG4E | SEG4F | SEG4G
+
+#define SEG17 SEG1A | SEG1B | SEG1C
+#define SEG27 SEG2A | SEG2B | SEG2C
+#define SEG37 SEG3A | SEG3B | SEG3C
+#define SEG47 SEG4A | SEG4B | SEG4C
+
+#define SEG18 SEG1A | SEG1B | SEG1C | SEG1D | SEG1E | SEG1F | SEG1G
+#define SEG28 SEG2A | SEG2B | SEG2C | SEG2D | SEG2E | SEG2F | SEG2G
+#define SEG38 SEG3A | SEG3B | SEG3C | SEG3D | SEG3E | SEG3F | SEG3G
+#define SEG48 SEG4A | SEG4B | SEG4C | SEG4D | SEG4E | SEG4F | SEG4G
+
+#define SEG19 SEG1A | SEG1B | SEG1C | SEG1D | SEG1F | SEG1G
+#define SEG29 SEG2A | SEG2B | SEG2C | SEG2D | SEG2F | SEG2G
+#define SEG39 SEG3A | SEG3B | SEG3C | SEG3D | SEG3F | SEG3G
+#define SEG49 SEG4A | SEG4B | SEG4C | SEG4D | SEG4F | SEG4G
