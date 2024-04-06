@@ -262,10 +262,10 @@ void app_main(void)
 
     shiftOut(SEG10 | SEG21 | SEG32 | SEG43);
 
+    int lastDifference = 0;
     while (1)
     {
         time(&now);
-        now = now - 1; // fun bodge factor
         ESP_LOGI(TAG, "The current time is: %jd", now);
         int difference = startTime - now;
         if (difference < 0)
@@ -275,18 +275,19 @@ void app_main(void)
         int seconds = difference % 60;
         int minutes = difference / 60;
         display = Digit4[(seconds % 10)] | Digit3[(seconds % 100) / 10] | Digit2[minutes % 10] | Digit1[(minutes % 100) / 10];
-
         if (active)
         {
-            int dot = TopDP | BtmDP;
-            display = display | dot;
-            shiftOut(display);
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-            display = display & ~dot;
-            shiftOut(display);
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-            time(&now);
-            ESP_LOGI(TAG, "The current time is: %jd", now);
+            // if time has updated
+            if (difference != lastDifference)
+            {
+                int dot = TopDP | BtmDP;
+                display = display | dot;
+                shiftOut(display);
+                vTaskDelay(500 / portTICK_PERIOD_MS);
+                display = display & ~dot;
+                shiftOut(display);
+                lastDifference = difference;
+            }
         }
         else
         {
