@@ -288,6 +288,7 @@ void app_main(void)
                 shiftOut(display);
                 lastDifference = difference;
             }
+            vTaskDelay(10 / portTICK_PERIOD_MS);
         }
         else
         {
