@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <inttypes.h>
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -10,55 +9,48 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
-
+#include "esp_sntp.h"
 #include "config.h"
 
 #include "esp_wifi.h"
 #include <esp_http_server.h>
 #include "nvs_flash.h"
+#include <string.h>
+#include <time.h>
+#include <sys/time.h>
+#include "esp_system.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "esp_attr.h"
+#include "esp_sleep.h"
+#include "nvs_flash.h"
+#include "esp_netif_sntp.h"
+#include "lwip/ip_addr.h"
+#include "esp_sntp.h"
 
-const char *ssid = "espAP";
-const char *password = "1234";
+#include "uri.h"
 
-#define CONNECT_WIFI_SSID "WSC-Mgmt"
-#define CONNECT_WIFI_PASS "R6CYhWr9&v6B!fR$"
+// #define CONNECT_WIFI_SSID "WSC-Mgmt"
+// #define CONNECT_WIFI_PASS "R6CYhWr9&v6B!fR$"
+#define CONNECT_WIFI_SSID "BT-7CCTFP"
+#define CONNECT_WIFI_PASS "6vcgXma3rveVfd"
+
 #define CONNECT_WIFI_MAXIMUM_RETRY 4
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_PSK
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
+
+#define HTTP_QUERY_KEY_MAX_LEN 32
+#define CONFIG_SNTP_TIME_SERVER "pool.ntp.org"
 
 /* FreeRTOS event group to signal when we are connected*/
 static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "Main";
 
-int counting = 0;
-int up = 0;
-int timer = 300;
-
-extern const uint8_t start_html_start[] asm("_binary_start_html_start");
-extern const uint8_t start_html_end[] asm("_binary_start_html_end");
-extern const uint8_t stop_html_start[] asm("_binary_stop_html_start");
-extern const uint8_t stop_html_end[] asm("_binary_stop_html_end");
-extern const uint8_t reset_html_start[] asm("_binary_reset_html_start");
-extern const uint8_t reset_html_end[] asm("_binary_reset_html_end");
-
-static void wifi_event_handler(void *arg, esp_event_base_t event_base,
-                               int32_t event_id, void *event_data)
-{
-    if (event_id == WIFI_EVENT_AP_STACONNECTED)
-    {
-        wifi_event_ap_staconnected_t *event = (wifi_event_ap_staconnected_t *)event_data;
-        ESP_LOGI(TAG, "station " MACSTR " join, AID=%d",
-                 MAC2STR(event->mac), event->aid);
-    }
-    else if (event_id == WIFI_EVENT_AP_STADISCONNECTED)
-    {
-        wifi_event_ap_stadisconnected_t *event = (wifi_event_ap_stadisconnected_t *)event_data;
-        ESP_LOGI(TAG, "station " MACSTR " leave, AID=%d",
-                 MAC2STR(event->mac), event->aid);
-    }
-}
+int startTime = 0;
+int active = 0;
+time_t now;
 
 static void init_nvs()
 {
@@ -69,42 +61,6 @@ static void init_nvs()
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
-}
-
-static void init_AP()
-{
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_t *wifiAP = esp_netif_create_default_wifi_ap();
-
-    esp_netif_ip_info_t ipInfo;
-    esp_netif_set_ip4_addr(&ipInfo.ip, 192, 168, 1, 1);
-    esp_netif_set_ip4_addr(&ipInfo.gw, 192, 168, 1, 1);
-    esp_netif_set_ip4_addr(&ipInfo.netmask, 255, 255, 255, 0);
-    esp_netif_dhcps_stop(wifiAP);
-    esp_netif_set_ip_info(wifiAP, &ipInfo);
-    esp_netif_dhcps_start(wifiAP);
-
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &wifi_event_handler,
-                                                        NULL,
-                                                        NULL));
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    wifi_config_t wifi_config = {
-        .ap = {
-            .ssid = CONFIG_SSID,
-            .password = "",
-            .max_connection = 3},
-    };
-
-    wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-
-    ESP_ERROR_CHECK(esp_wifi_start());
 }
 
 static int s_retry_num = 0;
@@ -220,32 +176,41 @@ static void shiftOut(uint32_t display)
     gpio_set_level(CONFIG_RCLK, 1);
 }
 
-esp_err_t start_handler(httpd_req_t *req)
+esp_err_t set_handler(httpd_req_t *req)
 {
-    counting = 1;
-
-    // const char resp[] = "<a href=\"/stop\"><button>STOP</button></a>";
-    // httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    httpd_resp_send(req, (const char *)start_html_start, start_html_end - start_html_start);
-    return ESP_OK;
-}
-
-esp_err_t stop_handler(httpd_req_t *req)
-{
-    counting = false;
-    // const char resp[] = "<a href=\"/start\"><button>START</button></a><a href=\"/reset\"><button>RESET</button</a>";
-    // httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    httpd_resp_send(req, (const char *)stop_html_start, stop_html_end - stop_html_start);
+    // get req query
+    char *buf;
+    size_t buf_len;
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1)
+    {
+        buf = malloc(buf_len);
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK)
+        {
+            ESP_LOGI(TAG, "Found URL query => %s", buf);
+            char param[HTTP_QUERY_KEY_MAX_LEN], dec_param[HTTP_QUERY_KEY_MAX_LEN] = {0};
+            /* Get value of expected key from query string */
+            if (httpd_query_key_value(buf, "startTime", param, sizeof(param)) == ESP_OK)
+            {
+                example_uri_decode(dec_param, param, strnlen(param, HTTP_QUERY_KEY_MAX_LEN));
+                ESP_LOGI(TAG, "Start Time: %s", dec_param);
+                startTime = atoi(dec_param);
+                active = 1;
+            }
+        }
+        free(buf);
+    }
+    const char resp[] = "<div></div>";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
 esp_err_t reset_handler(httpd_req_t *req)
 {
-    timer = 300;
-    up = 0;
-    // const char resp[] = "<a href=\"/start\"><button>START</button></a>";
-    // httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    httpd_resp_send(req, (const char *)reset_html_start, reset_html_end - reset_html_start);
+    active = 0;
+    const char resp[] = "<div></div>";
+
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -261,16 +226,10 @@ void app_main(void)
     httpd_handle_t server = NULL;
     httpd_start(&server, &config);
 
-    httpd_uri_t uri_start = {
-        .uri = "/start",
+    httpd_uri_t uri_set = {
+        .uri = "/set",
         .method = HTTP_GET,
-        .handler = start_handler,
-        .user_ctx = NULL};
-
-    httpd_uri_t uri_stop = {
-        .uri = "/stop",
-        .method = HTTP_GET,
-        .handler = stop_handler,
+        .handler = set_handler,
         .user_ctx = NULL};
 
     httpd_uri_t uri_reset = {
@@ -279,16 +238,8 @@ void app_main(void)
         .handler = reset_handler,
         .user_ctx = NULL};
 
-    httpd_uri_t uri_home = {
-        .uri = "/",
-        .method = HTTP_GET,
-        .handler = stop_handler,
-        .user_ctx = NULL};
-
-    httpd_register_uri_handler(server, &uri_start);
-    httpd_register_uri_handler(server, &uri_stop);
+    httpd_register_uri_handler(server, &uri_set);
     httpd_register_uri_handler(server, &uri_reset);
-    httpd_register_uri_handler(server, &uri_home);
 
     gpio_reset_pin(CONFIG_SRCLK);
     gpio_reset_pin(CONFIG_RCLK);
@@ -296,6 +247,11 @@ void app_main(void)
     gpio_set_direction(CONFIG_SRCLK, GPIO_MODE_OUTPUT);
     gpio_set_direction(CONFIG_RCLK, GPIO_MODE_OUTPUT);
     gpio_set_direction(CONFIG_SER, GPIO_MODE_OUTPUT);
+
+    sntp_set_sync_interval(30000);
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "131.188.3.220");
+    esp_sntp_init();
 
     int display = 0;
 
@@ -308,36 +264,40 @@ void app_main(void)
 
     while (1)
     {
-        int seconds = timer % 60;
-        int minutes = timer / 60;
-        display = Digit4[(seconds % 10)] | Digit3[(seconds % 100) / 10] | Digit2[minutes % 10] | Digit1[(minutes % 100) / 10];
-        int dot = 0;
-        if (counting && !up)
+        time(&now);
+        now = now - 1; // fun bodge factor
+        ESP_LOGI(TAG, "The current time is: %jd", now);
+        int difference = startTime - now;
+        if (difference < 0)
         {
-            dot = BtmDP;
-            timer -= 1;
-            if (timer <= 0)
-            {
-                up = 1;
-            }
+            difference = abs(difference);
         }
-        else if (counting && up)
+        int seconds = difference % 60;
+        int minutes = difference / 60;
+        display = Digit4[(seconds % 10)] | Digit3[(seconds % 100) / 10] | Digit2[minutes % 10] | Digit1[(minutes % 100) / 10];
+
+        if (active)
         {
-            dot = TopDP;
-            timer += 1;
+            int dot = TopDP | BtmDP;
+            display = display | dot;
+            shiftOut(display);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            display = display & ~dot;
+            shiftOut(display);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            time(&now);
+            ESP_LOGI(TAG, "The current time is: %jd", now);
         }
         else
         {
-            dot = TopDP | BtmDP;
-        }
-        display = display | dot;
-        shiftOut(display);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        if (counting)
-        {
-            display = display & ~dot;
+            // unix to hours, minutes
+            int hours = (now % 86400L) / 3600;
+            int minutes = (now % 3600) / 60;
+            int seconds = now % 60;
+            // split into digits
+            display = Digit4[(seconds % 10)] | Digit3[(seconds % 100) / 10] | Digit2[minutes % 10] | Digit1[(minutes % 100) / 10];
             shiftOut(display);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
         }
-        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }

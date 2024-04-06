@@ -1,4 +1,3 @@
-#define CONFIG_SSID "race clock"
 
 #define CONFIG_SRCLK 6 // white - phys12 - latch
 #define CONFIG_RCLK 7  // blue  - phys13 - clk
