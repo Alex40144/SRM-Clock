@@ -30,10 +30,10 @@
 
 #include "uri.h"
 
-// #define CONNECT_WIFI_SSID "WSC-Mgmt"
-// #define CONNECT_WIFI_PASS "R6CYhWr9&v6B!fR$"
-#define CONNECT_WIFI_SSID "BT-7CCTFP"
-#define CONNECT_WIFI_PASS "6vcgXma3rveVfd"
+#define CONNECT_WIFI_SSID "WSC-Mgmt"
+#define CONNECT_WIFI_PASS "R6CYhWr9&v6B!fR$"
+// #define CONNECT_WIFI_SSID "BT-7CCTFP"
+// #define CONNECT_WIFI_PASS "6vcgXma3rveVfd"
 
 #define CONNECT_WIFI_MAXIMUM_RETRY 4
 #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_PSK
